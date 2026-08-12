@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Useful Mobile Apps for Hobbies, Tools & Everyday Tasks</title>
+
+    <meta name="description"
+        content="Independent mobile app developer creating focused Android utilities for hobbies, tools, productivity and everyday tasks." />
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #f7f8fa;
+            color: #1d1d1f;
+            line-height: 1.6;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .container {
+            width: min(1100px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid #e8e8e8;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        nav {
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 19px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .nav-links a:hover {
+            color: #111;
+        }
+
+        .hero {
+            padding: 110px 0 90px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #eceef2;
+            padding: 7px 14px;
+            border-radius: 100px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: clamp(42px, 7vw, 72px);
+            line-height: 1.05;
+            letter-spacing: -2.5px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero p {
+            max-width: 680px;
+            margin: 28px auto 0;
+            font-size: 19px;
+            color: #666;
+        }
+
+        .hero-button {
+            display: inline-block;
+            margin-top: 34px;
+            background: #111;
+            color: white;
+            padding: 13px 22px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        section {
+            padding: 80px 0;
+        }
+
+        .section-header {
+            margin-bottom: 38px;
+        }
+
+        .section-header h2 {
+            font-size: 34px;
+            letter-spacing: -1px;
+            margin-bottom: 10px;
+        }
+
+        .section-header p {
+            color: #777;
+            max-width: 650px;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .app-card {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 18px;
+            padding: 26px;
+            min-height: 245px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .app-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
+        }
+
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 13px;
+            background: #f0f1f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 22px;
+        }
+
+        .app-card h3 {
+            font-size: 19px;
+            margin-bottom: 9px;
+        }
+
+        .app-card p {
+            font-size: 14px;
+            color: #707070;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 20px;
+            font-size: 12px;
+            background: #f2f3f5;
+            color: #666;
+            border-radius: 100px;
+            padding: 5px 10px;
+        }
+
+        .about-box {
+            background: #111;
+            color: white;
+            border-radius: 24px;
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+        }
+
+        .about-box h2 {
+            font-size: 34px;
+            letter-spacing: -1px;
+        }
+
+        .about-box p {
+            color: #c8c8c8;
+            margin-bottom: 16px;
+        }
+
+        .feature-list {
+            margin-top: 24px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .feature {
+            color: #eee;
+            font-size: 15px;
+        }
+
+        .feature::before {
+            content: "✓";
+            margin-right: 10px;
+            color: #8ee6a1;
+        }
+
+        .integration {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 20px;
+            padding: 38px;
+        }
+
+        .integration h3 {
+            font-size: 23px;
+            margin-bottom: 13px;
+        }
+
+        .integration p {
+            color: #666;
+            max-width: 780px;
+        }
+
+        .contact {
+            text-align: center;
+            padding-bottom: 100px;
+        }
+
+        .contact h2 {
+            font-size: 38px;
+            letter-spacing: -1px;
+            margin-bottom: 14px;
+        }
+
+        .contact p {
+            color: #777;
+            margin-bottom: 25px;
+        }
+
+        .contact-button {
+            display: inline-block;
+            background: #111;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        footer {
+            border-top: 1px solid #e3e3e3;
+            padding: 28px 0;
+            color: #777;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 800px) {
+            .apps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .about-box {
+                grid-template-columns: 1fr;
+                padding: 32px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 80px 0 60px;
+            }
+
+            h1 {
+                letter-spacing: -1.5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">Independent Apps</div>
+
+                <div class="nav-links">
+                    <a href="#projects">Projects</a>
+                    <a href="#about">About</a>
+                    <a href="#contact">Contact</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <section class="hero">
+            <div class="container">
+
+                <div class="badge">Independent Mobile App Developer</div>
+
+                <h1>
+                    Useful mobile apps for hobbies, tools & everyday tasks.
+                </h1>
+
+                <p>
+                    We create focused Android utilities designed to solve specific
+                    problems quickly, with simple interfaces and practical features.
+                </p>
+
+                <a href="#projects" class="hero-button">
+                    Explore Projects
+                </a>
+
+            </div>
+        </section>
+
+
+        <section id="projects">
+            <div class="container">
+
+                <div class="section-header">
+                    <h2>Projects in Development</h2>
+
+                    <p>
+                        A selection of focused mobile utilities currently being developed
+                        and prepared for release.
+                    </p>
+                </div>
+
+                <div class="apps-grid">
+
+                    <div class="app-card">
+                        <div class="app-icon">🧪</div>
+
+                        <h3>Epoxy Resin Calculator</h3>
+
+                        <p>
+                            Calculate resin quantities, mixing ratios and material
+                            requirements for resin projects.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+
+                    <div class="app-card">
+                        <div class="app-icon">🔭</div>
+
+                        <h3>Telescope Calculator</h3>
+
+                        <p>
+                            Calculate magnification, field of view and eyepiece performance
+                            for telescope setups.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+
+                    <div class="app-card">
+                        <div class="app-icon">🚲</div>
+
+                        <h3>Bike Maintenance Tracker</h3>
+
+                        <p>
+                            Track bicycle components, service history, maintenance and
+                            replacement intervals.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+
+                    <div class="app-card">
+                        <div class="app-icon">☕</div>
+
+                        <h3>Coffee Brew Timer</h3>
+
+                        <p>
+                            Create brewing recipes, follow step-by-step timers and keep
+                            a personal coffee journal.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+
+                    <div class="app-card">
+                        <div class="app-icon">🎣</div>
+
+                        <h3>Fishing Journal</h3>
+
+                        <p>
+                            Record fishing trips, catches, species, locations, equipment
+                            and personal fishing statistics.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+
+                    <div class="app-card">
+                        <div class="app-icon">🧵</div>
+
+                        <h3>Quilting Calculator</h3>
+
+                        <p>
+                            Calculate fabric requirements and organize quilting projects,
+                            measurements and materials.
+                        </p>
+
+                        <span class="status">In Development</span>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+
+        <section id="about">
+            <div class="container">
+
+                <div class="about-box">
+
+                    <div>
+                        <h2>Focused apps, built for real tasks.</h2>
+                    </div>
+
+                    <div>
+
+                        <p>
+                            We are an independent mobile app developer focused on practical
+                            Android applications for hobbyists, makers and everyday users.
+                        </p>
+
+                        <p>
+                            Each application is designed around a specific use case rather
+                            than trying to become an all-in-one platform.
+                        </p>
+
+                        <div class="feature-list">
+                            <div class="feature">Utility and calculation tools</div>
+                            <div class="feature">Hobby and project trackers</div>
+                            <div class="feature">Reference and educational applications</div>
+                            <div class="feature">Simple and focused mobile experiences</div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <section>
+            <div class="container">
+
+                <div class="integration">
+
+                    <h3>Contextual Product Recommendations</h3>
+
+                    <p>
+                        Selected applications may provide optional recommendations for
+                        tools, accessories or equipment relevant to the user's current
+                        activity or project. Product recommendations are intended to
+                        complement the application's core utility and are not the primary
+                        purpose of the applications.
+                    </p>
+
+                </div>
+
+            </div>
+        </section>
+
+
+        <section id="contact" class="contact">
+            <div class="container">
+
+                <h2>Contact</h2>
+
+                <p>
+                    Questions about our applications or upcoming releases?
+                </p>
+
+                <a class="contact-button" href="mailto:Sahar014g@gmail.com">
+                    Sahar014g@gmail.com
+                </a>
+
+            </div>
+        </section>
+
+    </main>
+
+
+    <footer>
+        <div class="container">
+            Independent Apps
+        </div>
+    </footer>
+
+</body>
+
+</html>
