@@ -59,10 +59,16 @@ function runGit(args, options = {}) {
       cwd: site,
       encoding: 'utf8',
       stdio: options.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+      timeout: options.timeoutMs || 30_000,
     }).trim();
   } catch (error) {
     const stderr = typeof error.stderr === 'string' ? error.stderr.trim() : '';
-    fail('GIT_COMMAND_FAILED', `git ${args.join(' ')} failed`, { stderr, exitCode: error.status ?? null });
+    fail('GIT_COMMAND_FAILED', `git ${args.join(' ')} failed`, {
+      stderr,
+      exitCode: error.status ?? null,
+      signal: error.signal ?? null,
+      timedOut: error.code === 'ETIMEDOUT',
+    });
   }
 }
 
