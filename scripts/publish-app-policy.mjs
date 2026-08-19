@@ -214,6 +214,10 @@ async function main() {
   if (affiliateEnabled && (affiliateProviders.length !== 1 || affiliateProviders[0] !== 'aliexpress')) {
     fail('UNSUPPORTED_AFFILIATE_PROVIDER', 'Only the AliExpress affiliate profile is supported');
   }
+  const youtubeDataApiEnabled = appProfile?.externalServices?.youtubeDataApi?.enabled === true;
+  if (youtubeDataApiEnabled && appProfile?.externalServices?.youtubeDataApi?.purpose !== 'app_functionality') {
+    fail('INVALID_APP_PROFILE', 'externalServices.youtubeDataApi.purpose must be app_functionality');
+  }
 
   const developerName = requiredText(publisher.developerName, 'publisherProfile.developerName');
   const contactEmail = requiredText(publisher.contactEmail, 'publisherProfile.contactEmail');
@@ -224,6 +228,7 @@ async function main() {
     admob: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'admob.html'), 'utf8'),
     noAds: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'no-ads.html'), 'utf8'),
     aliexpress: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'aliexpress.html'), 'utf8'),
+    youtubeDataApi: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'youtube-data-api.html'), 'utf8'),
   };
   const fingerprintSource = JSON.stringify({
     schemaVersion: 1,
@@ -233,6 +238,7 @@ async function main() {
     iosBundleId,
     ads: adsEnabled ? 'admob' : 'none',
     affiliate: affiliateEnabled ? 'aliexpress' : 'none',
+    externalServices: youtubeDataApiEnabled ? ['youtube_data_api'] : [],
     developerName,
     contactEmail,
     websiteUrl,
@@ -245,8 +251,14 @@ async function main() {
   const fragmentValues = { APP_NAME: escapeHtml(name) };
   const adsSection = render(adsEnabled ? templates.admob : templates.noAds, fragmentValues, 'advertising fragment').trim();
   const affiliateSection = affiliateEnabled ? render(templates.aliexpress, fragmentValues, 'affiliate fragment').trim() : '';
-  const thirdPartyDeletion = adsEnabled || affiliateEnabled
-    ? `<section>\n      <h2>Third-party information</h2>\n      <p>Information processed independently by ${adsEnabled ? 'Google and its advertising partners' : ''}${adsEnabled && affiliateEnabled ? ', or by ' : ''}${affiliateEnabled ? 'AliExpress and its service providers' : ''}, is governed by those providers' privacy and retention policies. Use the app's available privacy controls, your provider accounts, and your device settings to manage applicable choices.</p>\n    </section>`
+  const externalServicesSection = youtubeDataApiEnabled ? render(templates.youtubeDataApi, fragmentValues, 'YouTube Data API fragment').trim() : '';
+  const thirdPartyProviders = [
+    adsEnabled ? 'Google and its advertising partners' : '',
+    affiliateEnabled ? 'AliExpress and its service providers' : '',
+    youtubeDataApiEnabled ? 'Google and YouTube' : '',
+  ].filter(Boolean);
+  const thirdPartyDeletion = thirdPartyProviders.length > 0
+    ? `<section>\n      <h2>Third-party information</h2>\n      <p>Information processed independently by ${thirdPartyProviders.join(', ')} is governed by those providers' privacy and retention policies. Use the app's available privacy controls, your provider accounts, and your device settings to manage applicable choices.</p>\n    </section>`
     : '';
   const values = {
     APP_NAME: escapeHtml(name),
@@ -261,6 +273,7 @@ async function main() {
     DELETION_EMAIL_SUBJECT: encodeURIComponent(`${name} Data Deletion Request`),
     ADS_SECTION: adsSection,
     AFFILIATE_SECTION: affiliateSection,
+    EXTERNAL_SERVICES_SECTION: externalServicesSection,
     THIRD_PARTY_DELETION_SECTION: thirdPartyDeletion,
   };
   const privacyHtml = render(templates.privacy, values, 'privacy template');
@@ -272,7 +285,11 @@ async function main() {
     status: dryRun ? 'dry_run' : 'success',
     projectPath: project,
     app: { name, slug, androidPackage, iosBundleId },
-    profile: { ads: adsEnabled ? 'admob' : 'none', affiliateLinks: affiliateEnabled ? 'aliexpress' : 'none' },
+    profile: {
+      ads: adsEnabled ? 'admob' : 'none',
+      affiliateLinks: affiliateEnabled ? 'aliexpress' : 'none',
+      externalServices: youtubeDataApiEnabled ? ['youtube_data_api'] : [],
+    },
     fingerprint,
     urls: { privacyPolicy: privacyPolicyUrl, dataDeletion: dataDeletionUrl, website: websiteUrl },
     site: { repositoryPath: site, commit: null, changed: false, pushed: false, deploymentVerified: false },
