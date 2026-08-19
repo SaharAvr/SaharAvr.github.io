@@ -300,12 +300,12 @@ async function main() {
       if (unexpected.length) fail('UNEXPECTED_STAGED_FILE', 'The publisher staged a file outside this app policy', { unexpected });
       runGit(['commit', '-m', `Update ${name} policy pages`]);
       result.site.changed = true;
+      runGit(['push', 'origin', 'main']);
+      state.pushed = true;
+      result.site.pushed = true;
     }
-    runGit(['push', 'origin', 'main']);
-    state.pushed = true;
     state.siteCommit = runGit(['rev-parse', 'HEAD']);
     result.site.commit = state.siteCommit;
-    result.site.pushed = true;
   } finally {
     releaseLock();
   }
