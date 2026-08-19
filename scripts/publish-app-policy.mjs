@@ -116,7 +116,12 @@ async function acquireLock() {
       try {
         owner = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
       } catch {}
-      if (!processExists(owner?.pid)) {
+      const lockAgeMs = Date.now() - fs.statSync(lockDirectory).mtimeMs;
+      if (owner !== null && !processExists(owner.pid)) {
+        fs.rmSync(lockDirectory, { recursive: true, force: true });
+        continue;
+      }
+      if (owner === null && lockAgeMs >= 30_000) {
         fs.rmSync(lockDirectory, { recursive: true, force: true });
         continue;
       }
