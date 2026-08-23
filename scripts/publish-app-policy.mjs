@@ -17,6 +17,7 @@ const hasFlag = (flag) => argv.includes(flag);
 const project = path.resolve(valueAfter('--project') || process.cwd());
 const site = path.resolve(valueAfter('--site') || defaultSite);
 const dryRun = hasFlag('--dry-run');
+const verifyOnly = hasFlag('--verify-only');
 const deploymentTimeoutMs = Number(valueAfter('--deployment-timeout-ms') || 600_000);
 const lockTimeoutMs = Number(valueAfter('--lock-timeout-ms') || 600_000);
 
@@ -25,6 +26,10 @@ const state = {
   pushed: false,
   deploymentVerified: false,
 };
+
+function progress(message) {
+  console.error(`[policy ${new Date().toISOString()}] ${message}`);
+}
 
 class PolicyPublishError extends Error {
   constructor(code, message, details = {}) {
@@ -111,6 +116,7 @@ async function acquireLock() {
   const lockDirectory = path.join(gitDirectory, 'publish-app-policy.lock');
   const ownerPath = path.join(lockDirectory, 'owner.json');
   const deadline = Date.now() + lockTimeoutMs;
+  let nextProgressAt = Date.now() + 5_000;
   while (true) {
     try {
       fs.mkdirSync(lockDirectory, { mode: 0o700 });
@@ -133,6 +139,10 @@ async function acquireLock() {
       }
       if (Date.now() >= deadline) {
         fail('SITE_REPOSITORY_LOCK_TIMEOUT', 'Timed out waiting for another policy publisher to finish', { owner });
+      }
+      if (Date.now() >= nextProgressAt) {
+        progress(`Waiting for another policy publisher${owner?.project ? ` (${owner.project})` : ''}`);
+        nextProgressAt = Date.now() + 10_000;
       }
       await sleep(500);
     }
@@ -158,33 +168,64 @@ function validateGeneratedHtml(html, label, app) {
   if (/\b(?:local|locally)\b/i.test(html)) fail('GENERATED_POLICY_LOCAL_WORDING', `${label} contains prohibited local terminology`);
 }
 
-async function verifyDeployment(urls, fingerprint, app) {
+async function checkDeployment(urls, fingerprint, app) {
+  let last = null;
+  for (const [kind, url] of Object.entries(urls)) {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.set('policy-fingerprint', fingerprint);
+      parsed.searchParams.set('attempt', String(Date.now()));
+      const response = await fetch(parsed, {
+        redirect: 'follow',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+        headers: { 'cache-control': 'no-cache', pragma: 'no-cache' },
+      });
+      const body = await response.text();
+      const identitiesPresent = [app.name, app.androidPackage, app.iosBundleId, app.developerName]
+        .every((identity) => body.includes(escapeHtml(identity)) || body.includes(identity));
+      const fingerprintPresent = body.includes(`name="policy-fingerprint" content="${fingerprint}"`);
+      const deletionLanguagePresent = kind !== 'dataDeletion' || /(delete|deletion|remove)/i.test(body);
+      last = { kind, url, status: response.status, identitiesPresent, fingerprintPresent, deletionLanguagePresent };
+      if (!response.ok || !identitiesPresent || !fingerprintPresent || !deletionLanguagePresent) return { ok: false, last };
+    } catch (error) {
+      return { ok: false, last: { kind, url, message: error.message } };
+    }
+  }
+  return { ok: true, last };
+}
+
+async function verifyDeployment(urls, fingerprint, app, { wait }) {
+  if (!wait) {
+    progress('Checking the published policy pages once (--verify-only does not deploy or wait)');
+    const checked = await checkDeployment(urls, fingerprint, app);
+    if (!checked.ok) {
+      fail(
+        'GITHUB_PAGES_VERIFICATION_FAILED',
+        'The exact policy pages are not currently live; --verify-only cannot publish them',
+        { last: checked.last },
+      );
+    }
+    progress('Published policy pages match the expected app and fingerprint');
+    return;
+  }
+
   const deadline = Date.now() + deploymentTimeoutMs;
   let last = null;
+  let nextProgressAt = 0;
+  progress(`Waiting up to ${Math.ceil(deploymentTimeoutMs / 60_000)} minutes for GitHub Pages deployment`);
   while (Date.now() < deadline) {
-    for (const [kind, url] of Object.entries(urls)) {
-      try {
-        const parsed = new URL(url);
-        parsed.searchParams.set('policy-fingerprint', fingerprint);
-        parsed.searchParams.set('attempt', String(Date.now()));
-        const response = await fetch(parsed, {
-          redirect: 'follow',
-          cache: 'no-store',
-          signal: AbortSignal.timeout(15_000),
-          headers: { 'cache-control': 'no-cache', pragma: 'no-cache' },
-        });
-        const body = await response.text();
-        const identitiesPresent = [app.name, app.androidPackage, app.iosBundleId, app.developerName]
-          .every((identity) => body.includes(escapeHtml(identity)) || body.includes(identity));
-        const fingerprintPresent = body.includes(`name="policy-fingerprint" content="${fingerprint}"`);
-        last = { kind, url, status: response.status, identitiesPresent, fingerprintPresent };
-        if (!response.ok || !identitiesPresent || !fingerprintPresent) break;
-        if (kind === 'dataDeletion' && !/(delete|deletion|remove)/i.test(body)) break;
-        if (kind === 'dataDeletion') return;
-      } catch (error) {
-        last = { kind, url, message: error.message };
-        break;
-      }
+    const checked = await checkDeployment(urls, fingerprint, app);
+    last = checked.last;
+    if (checked.ok) {
+      progress('GitHub Pages deployment is live and verified');
+      return;
+    }
+    if (Date.now() >= nextProgressAt) {
+      const elapsedSeconds = Math.round((Date.now() - (deadline - deploymentTimeoutMs)) / 1_000);
+      const detail = last?.message || `HTTP ${last?.status ?? 'unknown'}, fingerprint ${last?.fingerprintPresent ? 'matched' : 'not live yet'}`;
+      progress(`Deployment not live yet (${elapsedSeconds}s elapsed; ${detail}); checking again`);
+      nextProgressAt = Date.now() + 10_000;
     }
     await sleep(2_000);
   }
@@ -192,6 +233,9 @@ async function verifyDeployment(urls, fingerprint, app) {
 }
 
 async function main() {
+  if (dryRun && verifyOnly) {
+    fail('INVALID_ARGUMENT', '--dry-run and --verify-only cannot be used together');
+  }
   if (!Number.isFinite(deploymentTimeoutMs) || deploymentTimeoutMs < 10_000) fail('INVALID_ARGUMENT', '--deployment-timeout-ms must be at least 10000');
   if (!Number.isFinite(lockTimeoutMs) || lockTimeoutMs < 1_000) fail('INVALID_ARGUMENT', '--lock-timeout-ms must be at least 1000');
 
@@ -283,6 +327,7 @@ async function main() {
 
   const result = {
     status: dryRun ? 'dry_run' : 'success',
+    verificationOnly: verifyOnly,
     projectPath: project,
     app: { name, slug, androidPackage, iosBundleId },
     profile: {
@@ -295,15 +340,26 @@ async function main() {
     site: { repositoryPath: site, commit: null, changed: false, pushed: false, deploymentVerified: false },
   };
   if (dryRun) {
+    progress(`Dry run completed for ${name}`);
     console.log(JSON.stringify(result, null, 2));
     return;
   }
 
+  if (verifyOnly) {
+    await verifyDeployment({ privacyPolicy: privacyPolicyUrl, dataDeletion: dataDeletionUrl }, fingerprint, app, { wait: false });
+    state.deploymentVerified = true;
+    result.site.deploymentVerified = true;
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  progress(`Preparing policy pages for ${name}`);
   const releaseLock = await acquireLock();
   try {
     if (runGit(['branch', '--show-current']) !== 'main') fail('SITE_REPOSITORY_WRONG_BRANCH', 'The GitHub Pages repository must be on main');
     const dirty = runGit(['status', '--porcelain=v1', '--untracked-files=all']);
     if (dirty !== '') fail('SITE_REPOSITORY_DIRTY', 'The GitHub Pages repository has changes unrelated to this publisher run', { status: dirty.split('\n') });
+    progress('Updating the GitHub Pages repository');
     runGit(['pull', '--rebase', 'origin', 'main']);
 
     const privacyRelative = path.posix.join('privacy-policy', slug, 'index.html');
@@ -317,9 +373,12 @@ async function main() {
       if (unexpected.length) fail('UNEXPECTED_STAGED_FILE', 'The publisher staged a file outside this app policy', { unexpected });
       runGit(['commit', '-m', `Update ${name} policy pages`]);
       result.site.changed = true;
+      progress('Pushing generated policy pages');
       runGit(['push', 'origin', 'main']);
       state.pushed = true;
       result.site.pushed = true;
+    } else {
+      progress('Policy pages are unchanged; no push needed');
     }
     state.siteCommit = runGit(['rev-parse', 'HEAD']);
     result.site.commit = state.siteCommit;
@@ -327,7 +386,7 @@ async function main() {
     releaseLock();
   }
 
-  await verifyDeployment({ privacyPolicy: privacyPolicyUrl, dataDeletion: dataDeletionUrl }, fingerprint, app);
+  await verifyDeployment({ privacyPolicy: privacyPolicyUrl, dataDeletion: dataDeletionUrl }, fingerprint, app, { wait: true });
   state.deploymentVerified = true;
   result.site.deploymentVerified = true;
   console.log(JSON.stringify(result, null, 2));
