@@ -18,6 +18,7 @@ const project = path.resolve(valueAfter('--project') || process.cwd());
 const site = path.resolve(valueAfter('--site') || defaultSite);
 const dryRun = hasFlag('--dry-run');
 const verifyOnly = hasFlag('--verify-only');
+const requireAdmob = hasFlag('--require-admob');
 const deploymentTimeoutMs = Number(valueAfter('--deployment-timeout-ms') || 600_000);
 const lockTimeoutMs = Number(valueAfter('--lock-timeout-ms') || 600_000);
 
@@ -253,6 +254,9 @@ async function main() {
   const adsEnabled = appProfile?.ads?.enabled;
   if (typeof adsEnabled !== 'boolean') fail('INVALID_APP_PROFILE', 'release/app-profile.json must contain ads.enabled as a boolean');
   if (adsEnabled && appProfile?.ads?.provider !== 'admob') fail('UNSUPPORTED_ADS_PROVIDER', 'Only the AdMob ads profile is supported');
+  if (requireAdmob && (!adsEnabled || appProfile?.ads?.provider !== 'admob')) {
+    fail('ADMOB_PROFILE_NOT_FINAL', 'Set release/app-profile.json to AdMob before publishing its policy pages');
+  }
   const affiliateEnabled = appProfile?.affiliateLinks?.enabled === true;
   const affiliateProviders = Array.isArray(appProfile?.affiliateLinks?.providers) ? appProfile.affiliateLinks.providers : [];
   if (affiliateEnabled && (affiliateProviders.length !== 1 || affiliateProviders[0] !== 'aliexpress')) {
