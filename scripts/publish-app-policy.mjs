@@ -19,6 +19,7 @@ const site = path.resolve(valueAfter('--site') || defaultSite);
 const dryRun = hasFlag('--dry-run');
 const verifyOnly = hasFlag('--verify-only');
 const requireAdmob = hasFlag('--require-admob');
+const requireIronSource = hasFlag('--require-ironsource');
 const deploymentTimeoutMs = Number(valueAfter('--deployment-timeout-ms') || 600_000);
 const lockTimeoutMs = Number(valueAfter('--lock-timeout-ms') || 600_000);
 
@@ -253,9 +254,13 @@ async function main() {
   if (!/^[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+$/.test(iosBundleId)) fail('INVALID_APP_PROFILE', 'expo.ios.bundleIdentifier is invalid');
   const adsEnabled = appProfile?.ads?.enabled;
   if (typeof adsEnabled !== 'boolean') fail('INVALID_APP_PROFILE', 'release/app-profile.json must contain ads.enabled as a boolean');
-  if (adsEnabled && appProfile?.ads?.provider !== 'admob') fail('UNSUPPORTED_ADS_PROVIDER', 'Only the AdMob ads profile is supported');
+  const adsProvider = adsEnabled ? appProfile?.ads?.provider : 'none';
+  if (adsEnabled && !['admob', 'ironsource'].includes(adsProvider)) fail('UNSUPPORTED_ADS_PROVIDER', 'Only AdMob and ironSource ads profiles are supported');
   if (requireAdmob && (!adsEnabled || appProfile?.ads?.provider !== 'admob')) {
     fail('ADMOB_PROFILE_NOT_FINAL', 'Set release/app-profile.json to AdMob before publishing its policy pages');
+  }
+  if (requireIronSource && (!adsEnabled || adsProvider !== 'ironsource')) {
+    fail('IRONSOURCE_PROFILE_NOT_FINAL', 'Set release/app-profile.json to ironSource before publishing its policy pages');
   }
   const affiliateEnabled = appProfile?.affiliateLinks?.enabled === true;
   const affiliateProviders = Array.isArray(appProfile?.affiliateLinks?.providers) ? appProfile.affiliateLinks.providers : [];
@@ -274,6 +279,7 @@ async function main() {
     privacy: fs.readFileSync(path.join(site, 'policy-templates', 'privacy.html'), 'utf8'),
     deletion: fs.readFileSync(path.join(site, 'policy-templates', 'data-deletion.html'), 'utf8'),
     admob: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'admob.html'), 'utf8'),
+    ironsource: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'ironsource.html'), 'utf8'),
     noAds: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'no-ads.html'), 'utf8'),
     aliexpress: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'aliexpress.html'), 'utf8'),
     youtubeDataApi: fs.readFileSync(path.join(site, 'policy-templates', 'fragments', 'youtube-data-api.html'), 'utf8'),
@@ -284,7 +290,7 @@ async function main() {
     slug,
     androidPackage,
     iosBundleId,
-    ads: adsEnabled ? 'admob' : 'none',
+    ads: adsProvider,
     affiliate: affiliateEnabled ? 'aliexpress' : 'none',
     externalServices: youtubeDataApiEnabled ? ['youtube_data_api'] : [],
     developerName,
@@ -297,11 +303,12 @@ async function main() {
   const dataDeletionUrl = `${privacyPolicyUrl}data-deletion/`;
   const app = { name, slug, androidPackage, iosBundleId, developerName, contactEmail, fingerprint };
   const fragmentValues = { APP_NAME: escapeHtml(name) };
-  const adsSection = render(adsEnabled ? templates.admob : templates.noAds, fragmentValues, 'advertising fragment').trim();
+  const adsTemplate = adsProvider === 'ironsource' ? templates.ironsource : adsProvider === 'admob' ? templates.admob : templates.noAds;
+  const adsSection = render(adsTemplate, fragmentValues, 'advertising fragment').trim();
   const affiliateSection = affiliateEnabled ? render(templates.aliexpress, fragmentValues, 'affiliate fragment').trim() : '';
   const externalServicesSection = youtubeDataApiEnabled ? render(templates.youtubeDataApi, fragmentValues, 'YouTube Data API fragment').trim() : '';
   const thirdPartyProviders = [
-    adsEnabled ? 'Google and its advertising partners' : '',
+    adsProvider === 'ironsource' ? 'Unity LevelPlay and its advertising partners' : adsProvider === 'admob' ? 'Google and its advertising partners' : '',
     affiliateEnabled ? 'AliExpress and its service providers' : '',
     youtubeDataApiEnabled ? 'Google and YouTube' : '',
   ].filter(Boolean);
@@ -335,7 +342,7 @@ async function main() {
     projectPath: project,
     app: { name, slug, androidPackage, iosBundleId },
     profile: {
-      ads: adsEnabled ? 'admob' : 'none',
+      ads: adsProvider,
       affiliateLinks: affiliateEnabled ? 'aliexpress' : 'none',
       externalServices: youtubeDataApiEnabled ? ['youtube_data_api'] : [],
     },
